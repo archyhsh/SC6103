@@ -1,0 +1,26 @@
+主机ip：192.168.0.8
+
+虚拟机查ip：ip addr show
+虚拟机安装openssh-server--finalshell: sudo apt-get install openssh-server
+虚拟机开启ens33ip: sudo dhclient ens33
+server ip：192.168.8.128：24
+client ip: 192.168.8.129：24
+
+cat > hello.c <<'EOF'
+
+linux编译c:gcc main.c -o hello ./hello
+linux获取今天0：00时间戳： date -d "today 00:00" +%s
+
+86400是一天
+
+sudo apt-get install libjansson-dev json环境
+gcc yourfile.c -ljansson -o filename编译
+
+桥接模式的一个弊端，当主机网络环境改变后，整个局域网网段、网关等都发生变化
+
+gcc sqlite_venue.c -lsqlite3 -o sqlite_venue sqlite编译 用于按id修改
+
+sudo lsof -i :12345 检查端口状态
+
+
+

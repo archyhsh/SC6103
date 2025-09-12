@@ -1,0 +1,23 @@
+1、调通udp 已完成 后续需要序列化（json->string）
+2、设计结构体表单 （server存储设施名称（定长字符串）、一周以内的可使用情况、预约情况）
+3、客户端前端界面 可以只是文字形式 但必须存在让使用者可以终止客户端的方式
+4、提供服务1：客户端可通过输入设施名称和时间段来预约某个设施。成功的book返回值需包括一个独一无二的确认ID，
+客户端也需要更新可用情况；失败的book需要返回恰当的错误信息
+5、提供服务2：客户端可以通过输入确认ID修改预约信息，在时间长度不变的情况下修改开始时间。成功的修改会返回一个确认信息，
+server会更新可用情况，失败的book需要返回恰当的错误信息
+6、提供服务3：用户可以监控一定时间内该设施的可用情况，服务器需要记录成功注册的客户端的ip地址和端口，在监控期间，
+当一个新的预约或更新被成功触发，就会通知这个注册成功的客户，当过期后，监控将被移除。我可以假设在这段时间内这个客户端
+不会进行任何其他请求。但注意注册成功并不需要它book了这个设施。
+7、注意1：服务器只有接收到请求后才会记录客户端的ip和port
+8、注意2：服务器可以不持久化存储这些数据，但必须在执行期间保存在内存中
+9、注意3：系统需要基于 at-least-once and at-most-once.来实现两种，因此需要考虑延时，过滤重复请求信息，以及维护历史信息等。
+建议在开启客户端时显示当前模式。建议使用一个requestID便于检测重复请求。需要模拟请求和回复信息丢包，并在实验中比较两者差异。
+ Show that at-least-once invocation semantics can lead to wrong results for non-idempotent operations, while at-most-once invocation semantics work
+correctly for all operations. Describe your experiments and discuss the results in the report.
+10、注意5： you must marshal the integer，values, strings etc. before transmission and unmarshal them upon receipt. Note
+that the strings (e.g., the facility names) need to be marshaled because their lengths are not fixed and may vary from request to request. You may consider adding the
+length information of the string in the marshaled messages. The following functions in C are useful in marshalling and unmarshalling:
+ #include <netinet/in.h>
+ uint32_t htonl(uint32_t hostlong);
+ uint32_t ntohl(uint32_t netlong);
+The htonl() function converts the unsigned integer hostlong from host byte order to network byte order. The ntohl() function converts the unsigned integer netlong from network byte order to host byte order. The network byte order, as used in the Internet, is Most Significant Byte first, whereas the host byte order depends on the specific architecture of the host.
