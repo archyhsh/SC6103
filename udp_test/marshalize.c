@@ -3,6 +3,7 @@
 #include <stdint.h>
 #include <string.h>
 #include <arpa/inet.h>
+#include "at_most_once.h"
 
 size_t marshalize_single(char *buf, const char *str) {
     // requestID for record, string marshalize with their individual length
@@ -13,16 +14,20 @@ size_t marshalize_single(char *buf, const char *str) {
     return sizeof(net_len) + len;
 }
 
-int marshalize(char *req, char *out, size_t size) {
+int marshalizeReq(char *req, char *out, size_t size) {
 	char *tmp[10];
+	char buffer[1024];
+     strncpy(buffer, req, sizeof(buffer));
+	buffer[sizeof(buffer)-1] = '\0';
 	int count = 0;
 	int offset = 0;
-	char *period = strtok(req, ",");
+	char *period = strtok(buffer, ",");
 	while (period != NULL && count < 10) {
 		tmp[count++] = period;
 		period = strtok(NULL, ",");
 	}
 	uint32_t requestID = hash2(req);
+	insert_cache(requestID, req);
 	uint32_t net_id = htonl(requestID);
 	memcpy(out + offset, &net_id, sizeof(net_id));
 	offset += sizeof(net_id);
@@ -31,3 +36,14 @@ int marshalize(char *req, char *out, size_t size) {
 	}
 	return offset;
 }
+
+int marshalizeResp(uint32_t requestID, const char *resp, char *out, size_t size) {
+    int offset = 0;
+    uint32_t net_id = htonl(requestID);
+    memcpy(out + offset, &net_id, sizeof(net_id));
+    offset += sizeof(net_id);
+    offset += marshalize_single(out + offset, resp);
+
+    return offset;
+}
+
