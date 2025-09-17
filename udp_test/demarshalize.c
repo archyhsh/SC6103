@@ -10,14 +10,14 @@ size_t demarshalize_single(char *buffer, char **out) {
     uint32_t len;
     memcpy(&len, buffer, 4);
     len = ntohl(len);
-    *out = malloc(len + 1);
+    *out = (char*)malloc(len + 1);
     memcpy(*out, buffer + 4, len);
     (*out)[len] = '\0';
     return 4 + len;
 }
 
-int demarshalize(char *input, char *out[], size_t size, uint32_t *requestID) {
-    size_t offset = 0;
+int demarshalize(char *input, char *out[], ssize_t size, uint32_t *requestID) {
+    ssize_t offset = 0;
     memcpy(requestID, input + offset, 4);
     *requestID = ntohl(*requestID);
     offset += 4;
