@@ -6,7 +6,7 @@
 #include "db_init.h"
 #include "parseTime.h"
 #include "../udp/hash_function.h"
-int appoint(sqlite3 *db, int venueId, const char *date, const char *start, const char *end, uint32_t appointmentId) {
+int appoint(sqlite3 *db, int venueId, const char *date, const char *start, const char *end, uint32_t *appointmentId) {
     sqlite3_stmt *stmt0;
     const char *sql0 = "SELECT startTime, endTime FROM Appointments WHERE venueId = ? and date = ?;";
     if (sqlite3_prepare_v2(db, sql0, -1, &stmt0, NULL) != SQLITE_OK) {
@@ -20,7 +20,7 @@ int appoint(sqlite3 *db, int venueId, const char *date, const char *start, const
         const char *curEnd = (const char *)sqlite3_column_text(stmt0, 1);
         if (strcmp(start, curEnd) < 0 && strcmp(end, curStart) > 0) {
         	printf("The appointment is invalid!\n");
-        	return -1;
+        	return -2;
         }
     }
     sqlite3_finalize(stmt0);
@@ -29,14 +29,14 @@ int appoint(sqlite3 *db, int venueId, const char *date, const char *start, const
     size_t buffer_size = strlen(date) + strlen(start) + strlen(end) + 20;
     char buffer[buffer_size];
     snprintf(buffer, sizeof(buffer), "%ld%d%s%s%s", (long)now, venueId, date, start, end);
-    appointmentId = hash2(buffer);
-    printf("get appointmentId: %u\n", appointmentId);
+    *appointmentId = hash2(buffer);
+    printf("get appointmentId: %u\n", *appointmentId);
     const char *sql1 = "INSERT INTO Appointments (appointmentId, venueId, date, startTime, endTime) VALUES (?, ?, ?, ?, ?);";
     if (sqlite3_prepare_v2(db, sql1, -1, &stmt1, NULL) != SQLITE_OK) {
         fprintf(stderr, "Prepare failed: %s\n", sqlite3_errmsg(db));
         return -1;
     }
-    sqlite3_bind_int(stmt1, 1, appointmentId);
+    sqlite3_bind_int(stmt1, 1, *appointmentId);
     sqlite3_bind_int(stmt1, 2, venueId);
     sqlite3_bind_text(stmt1, 3, date, -1, SQLITE_STATIC);
     sqlite3_bind_text(stmt1, 4, start, -1, SQLITE_STATIC);
@@ -73,7 +73,7 @@ static void minutes_to_time(int minutes, char *timeStr) {
     int mins = minutes % 60;
     sprintf(timeStr, "%02d:%02d", hours, mins);
 }
-static int adjust_time(sqlite3 *db, const int venueId, const char *date, const char *startTime, const char *endTime, uint32_t appointmentId, double offset) { 
+static int adjust_time(sqlite3 *db, const int venueId, const char *date, const char *startTime, const char *endTime, uint32_t appointmentId, double offset, char *newStartOut, char *newEndOut) { 
     int startMinutes = time_to_minutes(startTime);
     int endMinutes = time_to_minutes(endTime);
     int duration = endMinutes - startMinutes;
@@ -83,7 +83,7 @@ static int adjust_time(sqlite3 *db, const int venueId, const char *date, const c
     printf("Start from %d to %d, offsetMinutes: %d, duration is %d\n", startMinutes, endMinutes, offsetMinutes, duration);
     if (startMinutes < 0 || endMinutes > 1440) {
         fprintf(stderr, "Error: Adjusted time exceeds the limit of one day! \n");
-            return -1;
+            return -3;
         }
     char newStartTime[6], newEndTime[6];
     minutes_to_time(startMinutes, newStartTime);
@@ -105,7 +105,7 @@ static int adjust_time(sqlite3 *db, const int venueId, const char *date, const c
         }
         if (strcmp(newStartTime, curEnd) < 0 && strcmp(newEndTime, curStart) > 0) {
             printf("The alter of your appointment is invalid!\n");
-            return -1;
+            return -2;
         }
     }
     sqlite3_finalize(stmt0);
@@ -123,8 +123,11 @@ static int adjust_time(sqlite3 *db, const int venueId, const char *date, const c
         return -1;
     }	
     sqlite3_finalize(stmt1);
+    strcpy(newStartOut, newStartTime);
+    strcpy(newEndOut, newEndTime);
+    return 0;
 }
-int alter(sqlite3 *db, uint32_t appointmentId, double offset) {   
+int alter(sqlite3 *db, uint32_t appointmentId, double offset, char *newStartOut, char *newEndOut) {   
     sqlite3_stmt *stmt0;
     const char *sql0 = "SELECT venueID, date, startTime, endTime FROM Appointments WHERE appointmentId=?;";
     if (sqlite3_prepare_v2(db, sql0, -1, &stmt0, NULL) != SQLITE_OK) {
@@ -138,8 +141,9 @@ int alter(sqlite3 *db, uint32_t appointmentId, double offset) {
     	   const char *date = (const char *)sqlite3_column_text(stmt0, 1);
 	   const char *startTime = (const char *)sqlite3_column_text(stmt0, 2);
 	   const char *endTime = (const char *)sqlite3_column_text(stmt0, 3);
-	   if (adjust_time(db, venueId, date, startTime, endTime, appointmentId, offset) < 0) {
-	       return -1;
+	   int tmp = adjust_time(db, venueId, date, startTime, endTime, appointmentId, offset, newStartOut, newEndOut);
+	   if (tmp < 0) {
+	       return tmp;
 	   }
 	   if (sqlite3_prepare_v2(db, sql0, -1, &stmt0, NULL) != SQLITE_OK) {
             fprintf(stderr, "Prepare failed: %s\n", sqlite3_errmsg(db));
@@ -161,19 +165,20 @@ int alter(sqlite3 *db, uint32_t appointmentId, double offset) {
         sqlite3_finalize(stmt1);
         return 0;
     }else {
-	   fprintf(stderr, "Error: AppointmentId %d does not exist.\n", appointmentId);
-	   return -1;
+	   fprintf(stderr, "Error: AppointmentId %u does not exist.\n", appointmentId);
+	   sqlite3_finalize(stmt0);
+	   return -4;
     }
 }
 
-void deleteAppointment(sqlite3 *db, uint32_t AppointmentId) {
+void deleteAppointment(sqlite3 *db, uint32_t *appointmentId) {
     sqlite3_stmt *stmt;
     const char *sql = "DELETE FROM Appointments WHERE appointmentId=?;";
     if (sqlite3_prepare_v2(db, sql, -1, &stmt, NULL) != SQLITE_OK) {
         fprintf(stderr, "Prepare failed: %s\n", sqlite3_errmsg(db));
 	return;
     }
-    sqlite3_bind_int(stmt, 1, AppointmentId);
+    sqlite3_bind_int(stmt, 1, &appointmentId);
     if (sqlite3_step(stmt) != SQLITE_DONE) {
 	fprintf(stderr, "Delete failed: %s\n", sqlite3_errmsg(db));
 	return;
@@ -181,9 +186,9 @@ void deleteAppointment(sqlite3 *db, uint32_t AppointmentId) {
     else {
         int rowsAffected = sqlite3_changes(db);
 	if (rowsAffected > 0) {
-	    printf("Appointment with ID %d deleted successfully.\n", AppointmentId);
+	    printf("Appointment with ID %d deleted successfully.\n", &appointmentId);
 	} else {
-	    fprintf(stderr, "Error: AppointmentId %d does not exist.\n", AppointmentId);
+	    fprintf(stderr, "Error: AppointmentId %d does not exist.\n", &appointmentId);
 	}
     }	
     sqlite3_finalize(stmt);
