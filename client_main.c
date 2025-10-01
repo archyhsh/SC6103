@@ -1,137 +1,140 @@
-#define _XOPEN_SOURCE 700
 #include <stdio.h>
 #include <string.h>
-#include <stdlib.h>
-#include <unistd.h>
 #include <arpa/inet.h>
-#include <time.h>
-#include "udp/udp_client.h"
+#include <sqlite3.h>
+#include <stdlib.h>
+#include "udp/udp_server.h"
 #include "udp/marshalize.h"
 #include "udp/demarshalize.h"
 #include "udp/at_most_once.h"
-#include "request.h"
-#include "parseTime.h"
-
-
-// server msg type should be like:
-// 1. OK|appointmentId=123456    OK|hooked    OK|venues=TR61,TR62,TR63
-// 2. ERR|InvalidTime      ERR|VenueNotAvailable     ERR|AppointmentNotFound
+#include "backend/db_init.h"
+#include "backend/operate.h"
 
 
 int main() {
-    struct sockaddr_in server_addr;
-    int sockfd = udp_client_init("192.168.8.128", &server_addr);
+    int sockfd = udp_server_init(PORT);
     if (sockfd < 0) return 1;
+    printf("Server listening on port %d\n", PORT);
     init_cache();
-    uint32_t reqID = 0;
-    char response[1024];
-    char command[50];
-    if (send_request(sockfd, &server_addr, "init", response, sizeof(response), reqID) > 0) {
-        if (strncmp(response, "ERR", 3) == 0) {
-            printf("[INIT失败] %s\n", response);
-        } else {
-            printf("[INIT成功] 场所列表: %s\n", response);
-        }
+    sqlite3 *db;
+    init_db();
+    int rc = sqlite3_open("/home/archy/Desktop/server/backend/CampusVenueAppointment.db", &db);
+    if (rc != SQLITE_OK) {
+	   fprintf(stderr, "Cannot open database: %s\n", sqlite3_errmsg(db));
+	   return -1;
     }
-    printf("欢迎使用预约系统！\n");
-    printf("请输入命令 (create_new / alter_exist / subscribe_venue / exit):\n");
+
     while (1) {
-        printf("\n> ");
-        if (fgets(command, sizeof(command), stdin) == NULL) {
-            break;
-        }
-        command[strcspn(command, "\n")] = '\0';
-        if (strcmp(command, "create_new") == 0) {
-            int venueId;
-            char date[16], startTime[8], endTime[8];
-            printf("请输入您要预约的场所ID:\n> ");
-            scanf("%d", &venueId);
-            getchar();
-            printf("请输入您要预约的日期:(YYYY-MM-DD):\n> ");
-            scanf("%s", date);
-            getchar();
-            printf("请输入您预约的开始时间 (HH:MM) (整点或半点):\n> ");
-		  scanf("%s", startTime);
-		  getchar();
-            printf("请输入您预约的结束时间 (HH:MM) (整点或半点):\n> ");
-            scanf("%s", endTime);
-		  getchar();
-            if (strcmp(startTime, endTime) >= 0) {
-                break;
-            }
-            char req[128];
-            snprintf(req, sizeof(req), "create,%d,%s,%s,%s", venueId, date, startTime, endTime);
-            if (send_request(sockfd, &server_addr, req, response, sizeof(response), reqID) > 0) {
-                if (strncmp(response, "ERR", 3) == 0) {
-                    printf("[预约失败] %s\n", response);
-                } else {
-                    int appointmentId = atoi(response + 17); // "OK|appointmentId=123456"
-                    printf("✅ 预约成功！appointmentId = %d\n", appointmentId);
-                }
-            }
-        }
-        else if (strcmp(command, "alter_exist") == 0) {
-            int appointmentId;
-            float newDuration;
-            printf("请输入预约ID: \n>  ");
-            scanf("%d", &appointmentId);
-            getchar();
-            printf("您不能改变持续时间，只能尝试调整起始时间，输入正数代表推迟，输入负数代表提前: 单位：小时\n");
-            scanf("%f", &newDuration);
-            getchar();
+        struct sockaddr_in client_addr;
+        socklen_t addr_len = sizeof(client_addr);
+        char buffer[1024];
 
-            char req[128];
-            snprintf(req, sizeof(req), "alter,%d,%.2f", appointmentId, newDuration);
+        ssize_t received_len = udp_recv(sockfd, buffer, 1024, &client_addr, &addr_len);
+        if (received_len < 0) continue;
 
-            if (send_request(sockfd, &server_addr, req, response, sizeof(response), reqID) > 0) {
-                if (strncmp(response, "ERR", 3) == 0) {
-                    printf("[修改预约失败] %s\n", response);
+        buffer[received_len] = '\0';
+        printf("received from %s:%d\n",
+               inet_ntoa(client_addr.sin_addr),
+               ntohs(client_addr.sin_port));
+
+        char *demar_data[10];
+        uint32_t requestID;
+        int parameters = demarshalize(buffer, demar_data, received_len, &requestID);
+        char resp[1024];
+        if (strcmp(demar_data[0], "init") == 0) {
+            snprintf(resp, sizeof(resp), "OK|venues=1:TR62,2:TR68");
+        }
+        else if (strcmp(demar_data[0], "create") == 0) {
+        	  uint32_t appointmentId;
+            if (parameters >= 5) {
+                int venueId = atoi(demar_data[1]);
+                char *date = demar_data[2];
+                char *start = demar_data[3];
+                char *end = demar_data[4];
+                int tmp = appoint(db, sockfd, venueId, date, start, end, &appointmentId);
+                if (tmp == -1) {
+                	snprintf(resp, sizeof(resp), "ERR|System error!");
+                } else if (tmp == -2) {
+                	snprintf(resp, sizeof(resp), "ERR|Appointment time period not available!");
                 } else {
-                	char timePeriod[16];
-                	const char *pos = strstr(response, "timePeriod="); // "OK|appointmentId=123456"
-                    if (pos) {
-                        strcpy(timePeriod, pos + strlen("timePeriod="));
-                        printf("✅ 修改预约成功！新的预约时间段为: %s\n", timePeriod);
-                    }
+                	snprintf(resp, sizeof(resp), "OK|appointmentId=%u", appointmentId);
                 }
+            } else {
+                snprintf(resp, sizeof(resp), "ERR|invalid arguments for create function!");
             }
         }
-        else if (strcmp(command, "subscribe_venue") == 0) {
-            int venueId, duration;
-            time_t now = time(NULL);
-            double durationHour;
-            struct tm *tm_info = localtime(&now);
-            char date[11];
-            char timepoint[6];
-            strftime(date, sizeof(date), "%Y-%m-%d", tm_info);
-            strftime(timepoint, sizeof(timepoint), "%H:%M", tm_info);
-            long startTs = parseTime(date, timepoint);
-            printf("请输入您想订阅的场所ID: \n>  ");
-            scanf("%d", &venueId);
-            getchar();
-            printf("请输入您希望订阅的时长（单位：小时）: \n>  ");
-            scanf("%lf", &durationHour);
-            getchar();
-            duration = durationHour * 3600;
-            char req[128];
-            snprintf(req, sizeof(req), "hook,%d,%ld,%d", venueId, startTs, duration);
-            if (send_request(sockfd, &server_addr, req, response, sizeof(response), reqID) > 0) {
-                if (strncmp(response, "ERR", 3) == 0) {
-                    printf("[订阅场所推送失败] %s\n", response);
-                } else {
-                    printf("✅ 订阅场所模式开启！剩余时长为: %.lf 小时\n", durationHour);
-                    // 待机状态，只能接受服务器发送来的消息，无法返回response，也无法发送新的申请
+        else if (strcmp(demar_data[0], "alter") == 0) {
+            if (parameters >= 3) {
+                int appointmentId = atoi(demar_data[1]);
+                double duration = atof(demar_data[2]);
+                char newStart[6], newEnd[6];
+                int tmp = alter(db, sockfd, appointmentId, duration, newStart, newEnd);
+                if (tmp == -1) {
+                	snprintf(resp, sizeof(resp), "ERR|System error!");
+                } else if (tmp == -2) {
+                	snprintf(resp, sizeof(resp), "ERR|Appointment time period not available!");
+                } else if (tmp == -3) {
+                	snprintf(resp, sizeof(resp), "ERR|Appointment time cannot start on the previous day or end on the next day!");
+                } else if (tmp == -4) {
+                	snprintf(resp, sizeof(resp), "ERR|Invalid AppointmentID!");
+                }else {
+                	snprintf(resp, sizeof(resp), "OK|timePeriod=%s-%s", newStart, newEnd);
                 }
+            } else {
+                snprintf(resp, sizeof(resp), "ERR|invalid arguments for alter function!");
             }
         }
-        else if (strcmp(command, "exit") == 0) {
-            printf("退出系统，再见！\n");
-            break;
+        else if (strcmp(demar_data[0], "hook") == 0) {
+            if (parameters >= 4) {
+                int venueId = atoi(demar_data[1]);
+                long ts = atol(demar_data[2]);
+                int duration = atoi(demar_data[3]);
+                hook(db, inet_ntoa(client_addr.sin_addr), ntohs(client_addr.sin_port), venueId, ts, duration);
+                snprintf(resp, sizeof(resp), "OK|hook registered successfully!");
+            } else {
+                snprintf(resp, sizeof(resp), "ERR|invalid hook format");
+            }
+        }
+        else if (strcmp(demar_data[0], "duplicate") == 0) {
+            if (parameters >= 2) {
+                uint32_t appointmentId = atoi(demar_data[1]);
+                uint32_t rAppointmentId;
+                int tmp = duplicate(db, sockfd, appointmentId, &rAppointmentId);
+                if (tmp == -1) {
+                	snprintf(resp, sizeof(resp), "ERR|System error!");
+                } else if (tmp == -2) {
+                	snprintf(resp, sizeof(resp), "ERR|Appointment time period not available!");
+                } else if (tmp == -3) {
+                	snprintf(resp, sizeof(resp), "ERR|Invalid appointmentId!");
+                } else if (tmp == -4) {
+                	snprintf(resp, sizeof(resp), "ERR|Duplicate an out-of-range appointment!");
+                }else {
+                	snprintf(resp, sizeof(resp), "OK|appointmentId=%u", rAppointmentId);
+                }
+            } else {
+                snprintf(resp, sizeof(resp), "ERR|invalid duplicate format");
+            }
+        }
+        else if (strcmp(demar_data[0], "delete") == 0) {
+            if (parameters >= 2) {
+                uint32_t appointmentId = atoi(demar_data[1]);
+                deleteAppointment(db, sockfd, appointmentId);
+                snprintf(resp, sizeof(resp), "OK|your appointment has been deleted successfully!");
+            } else {
+                snprintf(resp, sizeof(resp), "ERR|invalid delete format");
+            }
         }
         else {
-            printf("无效命令，请重试。\n");
+            snprintf(resp, sizeof(resp), "ERR|unknown command");
         }
+
+        handle_request(requestID, resp);
+        char message[1024];
+        size_t respLen = marshalizeResp(requestID, resp, message, sizeof(message));
+        printf("the sent msg is of %ld length\n", respLen);
+        udp_send(sockfd, message, respLen, &client_addr, addr_len);
     }
+
     close(sockfd);
     return 0;
 }

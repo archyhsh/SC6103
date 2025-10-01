@@ -51,7 +51,7 @@ int main() {
                 char *date = demar_data[2];
                 char *start = demar_data[3];
                 char *end = demar_data[4];
-                int tmp = appoint(db, venueId, date, start, end, &appointmentId);
+                int tmp = appoint(db, sockfd, venueId, date, start, end, &appointmentId);
                 if (tmp == -1) {
                 	snprintf(resp, sizeof(resp), "ERR|System error!");
                 } else if (tmp == -2) {
@@ -68,7 +68,7 @@ int main() {
                 int appointmentId = atoi(demar_data[1]);
                 double duration = atof(demar_data[2]);
                 char newStart[6], newEnd[6];
-                int tmp = alter(db, appointmentId, duration, newStart, newEnd);
+                int tmp = alter(db, sockfd, appointmentId, duration, newStart, newEnd);
                 if (tmp == -1) {
                 	snprintf(resp, sizeof(resp), "ERR|System error!");
                 } else if (tmp == -2) {
@@ -78,7 +78,7 @@ int main() {
                 } else if (tmp == -4) {
                 	snprintf(resp, sizeof(resp), "ERR|Invalid AppointmentID!");
                 }else {
-                	snprintf(resp, sizeof(resp), "OK|updated timeperiod=%s-%s", newStart, newEnd);
+                	snprintf(resp, sizeof(resp), "OK|timePeriod=%s-%s", newStart, newEnd);
                 }
             } else {
                 snprintf(resp, sizeof(resp), "ERR|invalid arguments for alter function!");
@@ -89,10 +89,39 @@ int main() {
                 int venueId = atoi(demar_data[1]);
                 long ts = atol(demar_data[2]);
                 int duration = atoi(demar_data[3]);
-                hook(db, inet_ntoa(client_addr.sin_addr), venueId, ts, duration);
-                snprintf(resp, sizeof(resp), "OK|hook registered until ");
+                hook(db, inet_ntoa(client_addr.sin_addr), ntohs(client_addr.sin_port), venueId, ts, duration);
+                snprintf(resp, sizeof(resp), "OK|hook registered successfully!");
             } else {
                 snprintf(resp, sizeof(resp), "ERR|invalid hook format");
+            }
+        }
+        else if (strcmp(demar_data[0], "duplicate") == 0) {
+            if (parameters >= 2) {
+                uint32_t appointmentId = atoi(demar_data[1]);
+                uint32_t rAppointmentId;
+                int tmp = duplicate(db, sockfd, appointmentId, &rAppointmentId);
+                if (tmp == -1) {
+                	snprintf(resp, sizeof(resp), "ERR|System error!");
+                } else if (tmp == -2) {
+                	snprintf(resp, sizeof(resp), "ERR|Appointment time period not available!");
+                } else if (tmp == -3) {
+                	snprintf(resp, sizeof(resp), "ERR|Invalid appointmentId!");
+                } else if (tmp == -4) {
+                	snprintf(resp, sizeof(resp), "ERR|Duplicate an out-of-range appointment!");
+                }else {
+                	snprintf(resp, sizeof(resp), "OK|appointmentId=%u", rAppointmentId);
+                }
+            } else {
+                snprintf(resp, sizeof(resp), "ERR|invalid duplicate format");
+            }
+        }
+        else if (strcmp(demar_data[0], "delete") == 0) {
+            if (parameters >= 2) {
+                uint32_t appointmentId = atoi(demar_data[1]);
+                deleteAppointment(db, sockfd, appointmentId);
+                snprintf(resp, sizeof(resp), "OK|your appointment has been deleted successfully!");
+            } else {
+                snprintf(resp, sizeof(resp), "ERR|invalid delete format");
             }
         }
         else {
