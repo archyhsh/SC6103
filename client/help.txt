@@ -1,9 +1,0 @@
-此项目仅适配linux系统
-终端输入make运行client
-基本方法介绍：
-1、create_new(创建一个新的预约)
-2、alter_exist(修改现有预约时间段)
-3、subscribe_venue(订阅场所信息)
-4、delete_exist(删除现有预约)  额外的Idempotent方法，只删除存在的ID，不存在ID不会返回报错，即Idempotent
-5、duplicate_exist(基于现有预约生成新预约) 额外的non-idempotent方法，复制一个ID对应的预约信息至该预约的后一天，若超出一周会失败，即non-idempotent
-6、exit(退出) 客户端可终止，服务器原则上持续运行

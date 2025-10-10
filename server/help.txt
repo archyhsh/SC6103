@@ -1,2 +1,0 @@
-此项目仅适配linux系统
-终端输入make运行server
