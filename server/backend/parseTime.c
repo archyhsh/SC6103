@@ -2,7 +2,7 @@
 #include <stdio.h>
 #include <time.h>
 #include <string.h>
-
+/* 解析时间模板，用于修改*/
 int parseTime(const char *date, const char *timepoint) {
     char datetime[32];
     struct tm tm_time; // incomplete time_t

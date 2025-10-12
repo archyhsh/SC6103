@@ -1,3 +1,5 @@
+/* 反序列化信息， 占位ID获取传来的信息ID，之后用一个字符串列表记录传送来的参数 */
+
 #include <stdio.h>
 #include "hash_function.h"
 #include <stdint.h>

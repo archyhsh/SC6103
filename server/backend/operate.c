@@ -9,6 +9,7 @@
 #include "../udp/hash_function.h"
 #include "../udp/udp_server.h"
 #include "../udp/marshalize.h"
+/* 回调函数 记录IP与端口，触发后发送信息*/
 static int subscribeCallback(sqlite3 *db, int sockfd, int venueId, char *msg) {
     sqlite3_stmt *stmt;
     const char *sql =    "SELECT IP, PORT, startTime, duration FROM ClientIP WHERE hookVenueId = ? AND strftime('%s','now') BETWEEN startTime AND (startTime + duration);";
@@ -37,7 +38,7 @@ static int subscribeCallback(sqlite3 *db, int sockfd, int venueId, char *msg) {
     sqlite3_finalize(stmt);
     return 0;
 }
-
+/* 新建预约函数，失败会返回相应错误码*/
 int appoint(sqlite3 *db, int sockfd, int venueId, const char *date, const char *start, const char *end, uint32_t *appointmentId) {
     sqlite3_stmt *stmt0;
     const char *sql0 = "SELECT startTime, endTime FROM Appointments WHERE venueId = ? and date = ?;";
@@ -84,17 +85,19 @@ int appoint(sqlite3 *db, int sockfd, int venueId, const char *date, const char *
     subscribeCallback(db, sockfd, venueId, msg);
     return 0;
 }
-
+/* 时间相关函数，用于修改预约时间段*/
 static int time_to_minutes(const char *timeStr) {
     int hours = 0, minutes = 0;
     sscanf(timeStr, "%d:%d", &hours, &minutes);
     return hours*60+minutes;
 }
+/* 时间相关函数，用于修改预约时间段*/
 static void minutes_to_time(int minutes, char *timeStr) {
     int hours = minutes / 60;
     int mins = minutes % 60;
     sprintf(timeStr, "%02d:%02d", hours, mins);
 }
+/* 修改预约时间段，发生错误会返回相应错误码*/
 static int adjust_time(sqlite3 *db, const int venueId, const char *date, const char *startTime, const char *endTime, uint32_t appointmentId, double offset, char *newStartOut, char *newEndOut) { 
     int startMinutes = time_to_minutes(startTime);
     int endMinutes = time_to_minutes(endTime);
@@ -149,6 +152,7 @@ static int adjust_time(sqlite3 *db, const int venueId, const char *date, const c
     strcpy(newEndOut, newEndTime);
     return 0;
 }
+/* 修改接口，实际更改数据库步骤在adjust_time*/
 int alter(sqlite3 *db, int sockfd, uint32_t appointmentId, double offset, char *newStartOut, char *newEndOut) {   
     sqlite3_stmt *stmt0;
     const char *sql0 = "SELECT venueID, date, startTime, endTime FROM Appointments WHERE appointmentId=?;";
@@ -182,7 +186,7 @@ int alter(sqlite3 *db, int sockfd, uint32_t appointmentId, double offset, char *
 	   return -4;
     }
 }
-
+/* 删除预约*/
 void deleteAppointment(sqlite3 *db, int sockfd, uint32_t appointmentId) {
     sqlite3_stmt *stmt0;
     const char *sql0 = "SELECT venueID, date, startTime, endTime FROM Appointments WHERE appointmentId=?;";
@@ -218,7 +222,7 @@ void deleteAppointment(sqlite3 *db, int sockfd, uint32_t appointmentId) {
     subscribeCallback(db, sockfd, venueId, msg);
     sqlite3_finalize(stmt1);
 }
-
+/* 根据场所ID，接收IP和端口记录到数据库，接收开始时间与总时长，超时后自动忽略订阅信息*/
 int hook(sqlite3 *db, const char *client_addr, const int port, const int venueId, const int startTime, const int duration) {
     sqlite3_stmt *stmt;
     const char *sql = "INSERT INTO ClientIP (IP, PORT, hookVenueId, startTime, duration) VALUES (?, ?, ?, ?, ?);";
@@ -238,7 +242,7 @@ int hook(sqlite3 *db, const char *client_addr, const int port, const int venueId
     sqlite3_finalize(stmt);
     return 0;
 }
-
+/* 根据ID复制预约信息至后一天，发生错误会返回相应的错误码*/
 int duplicate(sqlite3 *db, int sockfd, uint32_t appointmentID, uint32_t *rAppointmentID) {
 	sqlite3_stmt *stmt;
 	const char *sql = "SELECT venueId, date, startTime, endTime from Appointments where appointmentId=?;";

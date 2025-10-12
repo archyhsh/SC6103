@@ -15,7 +15,7 @@
 #include "request.h"
 #include "parseTime.h"
 #include "config.h"
-
+/* 小工具：用于校验新请求日期合法*/
 int validate_date(const char *dateStr) {
     struct tm input_tm = {0};
     time_t now = time(NULL);
@@ -39,6 +39,7 @@ int validate_date(const char *dateStr) {
     }
     return 0;
 }
+/* 小工具：用于校验新请求时间点合法*/
 int validate_time(const char *timeStr) {
     int hour, minute;
     if (sscanf(timeStr, "%d:%d", &hour, &minute) != 2) {
@@ -52,7 +53,10 @@ int validate_time(const char *timeStr) {
     }
     return 0;
 }
-
+/* 
+1、主流程: 客户端本地初始化缓存-> 向服务器发送初始化请求（返回场所列表）->用户选择6个功能进行键入->根据键入内容发送请求->返回信息后反馈给客户端
+2、六个方法：创建新预约、修改现有预约时间段、删除现有预约、基于现有预约生成新预约、订阅新场所、退出
+*/
 int main() {
     struct sockaddr_in server_addr;
     int sockfd = udp_client_init(SERVER_IP, &server_addr);

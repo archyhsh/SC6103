@@ -1,3 +1,5 @@
+/* 序列化传递信息: 哈希信息内容作为唯一标识符ID，在序列化过程中，先传递参数长度，再传递参数，便于反序列化 */
+
 #include <stdio.h>
 #include "hash_function.h"
 #include <stdint.h>

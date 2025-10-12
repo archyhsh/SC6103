@@ -10,20 +10,20 @@
 #include "backend/db_init.h"
 #include "backend/operate.h"
 
-
 int main() {
     int sockfd = udp_server_init(PORT);
     if (sockfd < 0) return 1;
     printf("Server listening on port %d\n", PORT);
+    /* 初始化缓存和数据库*/
     init_cache();
     sqlite3 *db;
     init_db();
-    int rc = sqlite3_open("/home/archy/Desktop/server/backend/CampusVenueAppointment.db", &db);
+    int rc = sqlite3_open("./backend/CampusVenueAppointment.db", &db);
     if (rc != SQLITE_OK) {
 	   fprintf(stderr, "Cannot open database: %s\n", sqlite3_errmsg(db));
 	   return -1;
     }
-
+    /*轮询*/
     while (1) {
         struct sockaddr_in client_addr;
         socklen_t addr_len = sizeof(client_addr);
@@ -127,7 +127,7 @@ int main() {
         else {
             snprintf(resp, sizeof(resp), "ERR|unknown command");
         }
-
+        /* 发送响应消息*/
         handle_request(requestID, resp);
         char message[1024];
         size_t respLen = marshalizeResp(requestID, resp, message, sizeof(message));

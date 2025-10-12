@@ -4,7 +4,7 @@
 #include <sqlite3.h>
 
 // only conduct this program for database initialize when you use the repo for the first time
-
+/* 初始化场所信息*/
 static void createVenueTable(sqlite3 *db) {
     const char *sql = 
 	"CREATE TABLE IF NOT EXISTS Venues("
@@ -16,7 +16,7 @@ static void createVenueTable(sqlite3 *db) {
         sqlite3_free(err);
     }
 }
-
+/* 初始化预约信息*/
 static void createAppointmentTable(sqlite3 *db) {
     const char *sql = 
 	"CREATE TABLE IF NOT EXISTS Appointments("
@@ -32,7 +32,7 @@ static void createAppointmentTable(sqlite3 *db) {
         sqlite3_free(err);
     }
 }
-
+/* 初始化订阅信息*/
 static void createIpTable(sqlite3 *db) {
     const char *sql = 
 	"CREATE TABLE IF NOT EXISTS ClientIP("
@@ -49,7 +49,7 @@ static void createIpTable(sqlite3 *db) {
     }
 }
 
-
+/* 插入场所信息（假设不删除）*/
 static void insert_venue(sqlite3 *db, const char *name) {
     const char *sql = "INSERT OR REPLACE INTO Venues(name) VALUES(?);";
     sqlite3_stmt *stmt = NULL;
@@ -61,7 +61,7 @@ static void insert_venue(sqlite3 *db, const char *name) {
     }
     sqlite3_finalize(stmt);
 }
-
+/* 初始化数据库 */
 int init_db() {
     sqlite3 *db = NULL;
     // it is told that no need for create a new db, open one if not exists will create one automatically https://stackoverflow.com/questions/41693599/create-a-sqlite-database-in-c

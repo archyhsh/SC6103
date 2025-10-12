@@ -5,6 +5,7 @@
 #include "udp/marshalize.h"
 #include "udp/demarshalize.h"
 #include "udp/at_most_once.h"
+/* 客户端发送请求，之后接收响应*/
 int send_request(int sockfd, struct sockaddr_in *server_addr, char *req, char *response_buf, size_t buf_size, uint32_t requestID) {
     char message[1024];
     size_t msg_len = marshalizeReq(req, message, sizeof(message)); 
@@ -29,16 +30,6 @@ int send_request(int sockfd, struct sockaddr_in *server_addr, char *req, char *r
            received_len);
     char *demar_data[10];
     int count = demarshalize(buffer, demar_data, received_len, &requestID);
-//    if (count > 0 && response_buf != NULL) {
-//        response_buf[0] = '\0';
-//        for (int i = 0; i < count; i++) {
-//            strncat(response_buf, demar_data[i], buf_size - strlen(response_buf) - 1);
-//            if (i < count - 1) {
-//                strncat(response_buf, "|", buf_size - strlen(response_buf) - 1);
-//            }
-//        }
-//    }
-    // only send back the first string 
     if (count > 0 && response_buf != NULL) { 
     	   strncpy(response_buf, demar_data[0], buf_size-1); 
     	   response_buf[buf_size-1] = '\0'; 
