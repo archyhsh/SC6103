@@ -61,7 +61,6 @@ int main() {
     struct sockaddr_in server_addr;
     int sockfd = udp_client_init(SERVER_IP, &server_addr);
     if (sockfd < 0) return 1;
-    // at least once 配置入口： init_cache_with_params(CACHE_SIZE, UDP_TIMEOUT_MS, MAX_RETRIES);
     init_cache();
     uint32_t reqID = 0;
     char response[1024];
@@ -72,6 +71,9 @@ int main() {
         } else {
             printf("[INIT成功] 场所列表: %s\n", response);
         }
+    }
+    else {
+        return -1;
     }
     printf("欢迎使用预约系统！\n");
     printf("请输入命令 (create_new(创建一个新的预约) / alter_exist(修改现有预约时间段) / delete_exist(删除现有预约) / duplicate_exist(基于现有预约生成新预约) / subscribe_venue(订阅场所信息) / exit(退出)):\n");
@@ -121,13 +123,18 @@ int main() {
             }
             char req[128];
             snprintf(req, sizeof(req), "create,%d,%s,%s,%s", venueId, date, startTime, endTime);
-            if (send_request(sockfd, &server_addr, req, response, sizeof(response), reqID) > 0) {
+            int tmp_response = send_request(sockfd, &server_addr, req, response, sizeof(response), reqID);
+            if (tmp_response > 0) {
                 if (strncmp(response, "ERR", 3) == 0) {
                     printf("处理您的新建预约申请发生了错误: %s\n", response);
                 } else {
                     int appointmentId = atoi(response + 17); // "OK|appointmentId=123456"
                     printf("您的修改预约申请已办理成功！请保存好你的预约ID: %d\n", appointmentId);
                 }
+            } else if (tmp_response == -1){
+                printf("System Error!");
+            } else {
+                printf("Get the response from the cache");
             }
         }
         else if (strcmp(command, "alter_exist") == 0) {
@@ -141,7 +148,8 @@ int main() {
             getchar();
             char req[128];
             snprintf(req, sizeof(req), "alter,%d,%.2f", appointmentId, newDuration);
-            if (send_request(sockfd, &server_addr, req, response, sizeof(response), reqID) > 0) {
+            int tmp_response = send_request(sockfd, &server_addr, req, response, sizeof(response), reqID);
+            if (tmp_response > 0) {
                 if (strncmp(response, "ERR", 3) == 0) {
                     printf("处理您的修改预约申请发生了错误: %s\n", response);
                 } else {
@@ -152,6 +160,10 @@ int main() {
                         printf("您的修改预约申请已办理成功！新的预约时间段为: %s\n", timePeriod);
                     }
                 }
+            } else if (tmp_response == -1){
+                printf("System Error!");
+            } else {
+                printf("Get the response from the cache");
             }
         }
         else if (strcmp(command, "delete_exist") == 0) {
@@ -162,13 +174,17 @@ int main() {
 
             char req[128];
             snprintf(req, sizeof(req), "delete,%d", appointmentId);
-
-            if (send_request(sockfd, &server_addr, req, response, sizeof(response), reqID) > 0) {
+            int tmp_response = send_request(sockfd, &server_addr, req, response, sizeof(response), reqID);
+            if (tmp_response > 0) {
                 if (strncmp(response, "ERR", 3) == 0) {
                     printf("处理您的删除预约申请发生了错误: %s\n", response);
                 } else {
                     printf("您的删除预约申请已办理成功!\n");
                 }
+            } else if (tmp_response == -1){
+                printf("System Error!");
+            } else {
+                printf("Get the response from the cache");
             }
         }
         else if (strcmp(command, "duplicate_exist") == 0) {
@@ -178,14 +194,18 @@ int main() {
             getchar();
             char req[128];
             snprintf(req, sizeof(req), "duplicate,%d", appointmentId);
-
-            if (send_request(sockfd, &server_addr, req, response, sizeof(response), reqID) > 0) {
+            int tmp_response = send_request(sockfd, &server_addr, req, response, sizeof(response), reqID);
+            if (tmp_response > 0) {
                 if (strncmp(response, "ERR", 3) == 0) {
                     printf("处理您的复制预约申请发生了错误: %s\n", response);
                 } else {
                 	int appointmentId = atoi(response + 17); // "OK|appointmentId=123456"
                     printf("您的新预约申请已办理成功！请保存好你的预约ID: %d\n", appointmentId);
                 }
+            } else if (tmp_response == -1){
+                printf("System Error!");
+            } else {
+                printf("Get the response from the cache");
             }
         }
         else if (strcmp(command, "subscribe_venue") == 0) {
@@ -207,7 +227,8 @@ int main() {
             duration = durationHour * 3600;
             char req[128];
             snprintf(req, sizeof(req), "hook,%d,%ld,%d", venueId, startTs, duration);
-            if (send_request(sockfd, &server_addr, req, response, sizeof(response), reqID) > 0) {
+            int tmp_response = send_request(sockfd, &server_addr, req, response, sizeof(response), reqID);
+            if (tmp_response > 0) {
                 if (strncmp(response, "ERR", 3) == 0) {
                     printf("处理您的订阅场所申请发生了错误: %s\n", response);
                 } else {
@@ -232,9 +253,8 @@ int main() {
                             ssize_t received_len = recvfrom(sockfd, msg, sizeof(msg)-1, 0, (struct sockaddr *)&server_addr, &addr_len);
                             if (received_len > 0) {
                                 msg[received_len] = '\0';
-                                uint32_t requestID;
                                 char *demar_data[10];
-                                demarshalize(msg, demar_data, received_len, &requestID);
+                                demarshalize(msg, demar_data, received_len);
                                 printf("subscribe callback from server: %s\n", demar_data[0]);
                             }
                         } else if (ret < 0) {
@@ -244,6 +264,10 @@ int main() {
                      // ret == 0 -> 超时，继续循环判断时间
                    }
                 }
+            } else if (tmp_response == -1){
+                printf("System Error!");
+            } else {
+                printf("Get the response from the cache");
             }
         }
         else if (strcmp(command, "exit") == 0) {

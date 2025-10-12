@@ -18,11 +18,11 @@ size_t demarshalize_single(char *buffer, char **out) {
     return 4 + len;
 }
 
-int demarshalize(char *input, char *out[], ssize_t size, uint32_t *requestID) {
+int demarshalize(char *input, char *out[], ssize_t size) {
     ssize_t offset = 0;
-    memcpy(requestID, input + offset, 4);
-    *requestID = ntohl(*requestID);
-    offset += 4;
+    // uint32_t requestID;
+    // memcpy(&requestID, input + offset, 4);
+    // offset += 4;
     int index = 0;
     printf("%ld, %ld\n", offset, size);
     while (offset + 4 < size) {

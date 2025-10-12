@@ -16,10 +16,10 @@ size_t marshalize_single(char *buf, const char *str) {
     return sizeof(net_len) + len;
 }
 
-int marshalizeReq(char *req, char *out, size_t size) {
+int marshalizeReq(char *req, char *out, size_t size, uint32_t *requestID) {
 	char *tmp[10];
 	char buffer[1024];
-     strncpy(buffer, req, sizeof(buffer));
+    strncpy(buffer, req, sizeof(buffer));
 	buffer[sizeof(buffer)-1] = '\0';
 	int count = 0;
 	int offset = 0;
@@ -28,24 +28,16 @@ int marshalizeReq(char *req, char *out, size_t size) {
 		tmp[count++] = period;
 		period = strtok(NULL, ",");
 	}
-	uint32_t requestID = hash2(req);
-	insert_cache(requestID, req);
-	uint32_t net_id = htonl(requestID);
+	uint32_t requestID_tmp = hash2(req);
+	if (requestID != NULL) {
+        *requestID = requestID_tmp;
+    }
+	uint32_t net_id = htonl(requestID_tmp);
 	memcpy(out + offset, &net_id, sizeof(net_id));
 	offset += sizeof(net_id);
 	for (int i = 0; i < count; i++) {
 	    offset += marshalize_single(out + offset, tmp[i]);	
 	}
 	return offset;
-}
-
-int marshalizeResp(uint32_t requestID, const char *resp, char *out, size_t size) {
-    int offset = 0;
-    uint32_t net_id = htonl(requestID);
-    memcpy(out + offset, &net_id, sizeof(net_id));
-    offset += sizeof(net_id);
-    offset += marshalize_single(out + offset, resp);
-
-    return offset;
 }
 

@@ -5,6 +5,6 @@
 #include <arpa/inet.h>
 
 size_t marshalize_single(char *buf, const char *str);
-int marshalizeReq(char *req, char* out, size_t size);
-int marshalizeResp(uint32_t requestID, const char *resp, char *out, size_t size);
+int marshalizeReq(char *req, char* out, size_t size, uint32_t *requestID);
+
 #endif

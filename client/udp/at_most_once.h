@@ -14,9 +14,7 @@ typedef struct {
 } CacheEntry;
 void init_cache();
 const char* lookup_cache(uint32_t requestID);
-void set_cache_date(CacheEntry *cache);
 void insert_cache(uint32_t requestID, const char* response);
 const char* handle_request(uint32_t requestID, const char* response);
-const char* handle_response(uint32_t requestID, const char* response);
 #endif
 

@@ -5,6 +5,6 @@
 #include <arpa/inet.h>
 
 size_t demarshalize_single(char *buffer, char **out);
-int demarshalize(char *input, char *out[], ssize_t size, uint32_t *requestID);
+int demarshalize(char *input, char *out[], ssize_t size);
 
 #endif
