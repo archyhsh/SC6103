@@ -6,7 +6,7 @@
 #include "udp/marshalize.h"
 #include "udp/demarshalize.h"
 #include "udp/at_most_once.h"
-#include "request.h"
+#include "semantic_mode.h"
 
 /* 客户端发送请求，之后接收响应*/
 /* 传入的requestID并没有实值*/

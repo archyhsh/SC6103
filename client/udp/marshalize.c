@@ -6,6 +6,7 @@
 #include <string.h>
 #include <arpa/inet.h>
 #include "at_most_once.h"
+#include "../semantic_mode.h"
 
 size_t marshalize_single(char *buf, const char *str) {
     // requestID for record, string marshalize with their individual length
@@ -15,8 +16,7 @@ size_t marshalize_single(char *buf, const char *str) {
     memcpy(buf + sizeof(net_len), str, len);
     return sizeof(net_len) + len;
 }
-
-int marshalizeReq(char *req, char *out, size_t size, uint32_t *requestID) {
+int marshalizeReq(char *req, char *out, size_t size, uint32_t *requestID, semantic_mode_t mode) {
 	char *tmp[10];
 	char buffer[1024];
     strncpy(buffer, req, sizeof(buffer));
@@ -32,9 +32,15 @@ int marshalizeReq(char *req, char *out, size_t size, uint32_t *requestID) {
 	if (requestID != NULL) {
         *requestID = requestID_tmp;
     }
+	/* 序列化 requestID */
 	uint32_t net_id = htonl(requestID_tmp);
 	memcpy(out + offset, &net_id, sizeof(net_id));
 	offset += sizeof(net_id);
+	/* 序列化 语义模式 */
+	uint32_t mode_id = (uint32_t)mode;
+	uint32_t net_mode = htonl(mode_id);
+    memcpy(out + offset, &net_mode, sizeof(net_mode));
+    offset += sizeof(net_mode);
 	for (int i = 0; i < count; i++) {
 	    offset += marshalize_single(out + offset, tmp[i]);	
 	}

@@ -3,8 +3,8 @@
 
 #include <stdint.h>
 #include <arpa/inet.h>
+#include "../semantic_mode.h"
 
-size_t demarshalize_single(char *buffer, char **out);
-int demarshalize(char *input, char *out[], ssize_t size, uint32_t *requestID);
+int demarshalize(char *input, char *out[], ssize_t size, uint32_t *requestID, semantic_mode_t *mode);
 
 #endif

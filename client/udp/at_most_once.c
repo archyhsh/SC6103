@@ -22,6 +22,14 @@ const char* lookup_cache(uint32_t requestID) {
     }
     return NULL;
 }
+static void set_cache_date(CacheEntry *cache) {
+    time_t t = time(NULL);
+    struct tm *tm_info = localtime(&t);
+    snprintf(cache->date, sizeof(cache->date), "%04d-%02d-%02d",
+             tm_info->tm_year + 1900,
+             tm_info->tm_mon + 1,
+             tm_info->tm_mday);
+}
 /* 向缓存区存入新请求信息*/
 void insert_cache(uint32_t requestID, const char* response) {
     for (int i = 0; i < MAX_CACHE_SIZE; i++) {
