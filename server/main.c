@@ -2,6 +2,7 @@
 #include <string.h>
 #include <arpa/inet.h>
 #include <stdlib.h>
+#include <unistd.h>
 #include <sqlite3.h>
 #include "udp/udp_server.h"
 #include "udp/marshalize.h"
@@ -12,7 +13,7 @@
 #include "semantic_mode.h"
 
 int main() {
-    int sockfd = udp_server_init(PORT);
+    int sockfd = udp_server_init();
     if (sockfd < 0) return 1;
     printf("Server listening on port %d\n", PORT);
     semantic_mode_t mode;

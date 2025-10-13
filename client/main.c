@@ -23,7 +23,7 @@ int validate_date(const char *dateStr) {
     struct tm today_tm;
     localtime_r(&now, &today_tm);
     if (strptime(dateStr, "%Y-%m-%d", &input_tm) == NULL) {
-        printf("日期格式错误，请输入 YYYY-MM-DD 格式\n");
+        //printf("Invalid date format. Please use YYYY-MM-DD.\n");
         return -1;
     }
     time_t input_time = mktime(&input_tm);
@@ -31,11 +31,11 @@ int validate_date(const char *dateStr) {
     time_t today_time = mktime(&today_tm);
     double diff_days = difftime(input_time, today_time) / (60 * 60 * 24);
     if (diff_days < 0) {
-        printf("错误：预约日期不能早于今天！\n");
+        //printf("Error: Appointment date cannot be earlier than today!\n");
         return -2;
     }
     if (diff_days > 7) {
-        printf("错误：预约日期不能超过一周！\n");
+        //printf("Error: Appointment date must be within one week from today!\n");
         return -3;
     }
     return 0;
@@ -43,7 +43,8 @@ int validate_date(const char *dateStr) {
 /* 小工具：用于校验新请求时间点合法*/
 int validate_time(const char *timeStr) {
     int hour, minute;
-    if (sscanf(timeStr, "%d:%d", &hour, &minute) != 2) {
+    char extra;
+    if (sscanf(timeStr, "%d:%d%c", &hour, &minute, &extra) != 2) {
         return -1; 
     }
     if (hour < 0 || hour > 23) {
@@ -66,173 +67,207 @@ int main() {
     semantic_mode_t mode;
     char response[1024];
     char command[50];
-    send_request(sockfd, &server_addr, "init", response, sizeof(response), 0);
-    if (strncmp(response, "ERR", 3) == 0) {
-        printf("[INIT失败] %s\n", response);
-    } else {
-        printf("[INIT成功] 场所列表: %s\n", response);
+    char venues_list[1024];
+
+    if (send_request(sockfd, &server_addr, "init", response, sizeof(response), 0) == -1) {
+        printf("UDP transmission failed!\n");
+        printf("Exiting.....................\n");
+        close(sockfd);
+        return 0;
     }
-    printf("欢迎使用预约系统！\n");
+
+    if (strncmp(response, "ERR", 3) == 0) {
+        printf("[INIT FAILED] %s\n", response);
+    } else {
+        printf("[INIT SUCCESS] Available venues: %s\n", response);
+        strncpy(venues_list, response, sizeof(venues_list) - 1);
+        venues_list[strlen(venues_list) - 1] = '\0';
+    }
+
+    printf("Welcome to the Appointment Booking System!\n");
+
     while (1) {
-        printf("\n=== 请选择通信语义模式 ===\n");
-        printf("0 - At_Most_Once (查询操作推荐)\n");
-        printf("1 - At_Least_Once (预约/取消操作推荐)\n");
-        printf("请选择(0/1): ");
-        
+        printf("\n=== Please Select Communication Semantic Mode ===\n");
+        printf("0 - At_Most_Once (Recommended for queries)\n");
+        printf("1 - At_Least_Once (Recommended for booking/cancellation)\n");
+        printf("Your choice (0/1): ");
+
         int input;
         if (scanf("%d", &input) != 1) {
-            printf("输入格式错误！\n");
-            while (getchar() != '\n'); // 清空输入缓冲区
+            printf("Invalid input format!\n");
+            while (getchar() != '\n');
             continue;
         }
-        getchar(); // 清除换行符
-        
+        getchar();
+
         if (input == 0) {
             mode = SEMANTIC_AT_MOST_ONCE;
-            printf("已选择 At_Most_Once 模式\n");
+            printf("At_Most_Once mode selected.\n");
             break;
         } else if (input == 1) {
             mode = SEMANTIC_AT_LEAST_ONCE;
-            printf("已选择 At_Least_Once 模式\n");
+            printf("At_Least_Once mode selected.\n");
             break;
         } else {
-            printf("无效选择，请输入 0 或 1！\n");
+            printf("Invalid choice. Please enter 0 or 1.\n");
         }
     }
-    printf("请输入命令 (create_new(创建一个新的预约) / alter_exist(修改现有预约时间段) / delete_exist(删除现有预约) / duplicate_exist(基于现有预约生成新预约) / subscribe_venue(订阅场所信息) / exit(退出)):\n");
+
+    printf("\nEnter command:\n"
+           "  create_new      - Book a new appointment\n"
+           "  alter_exist     - Modify an existing appointment\n"
+           "  delete_exist    - Cancel an existing appointment\n"
+           "  duplicate_exist - Duplicate an appointment to the next day\n"
+           "  subscribe_venue - Subscribe to venue updates\n"
+           "  exit            - Exit the system\n");
+
     while (1) {
         printf("\n> ");
         if (fgets(command, sizeof(command), stdin) == NULL) {
             break;
         }
         command[strcspn(command, "\n")] = '\0';
+
         if (strcmp(command, "create_new") == 0) {
             int venueId;
             char date[16], startTime[8], endTime[8];
-            printf("现有场所为: %s\n请输入您要预约的场所ID: \n> ", response);
+            printf("Available venues: %s\nEnter venue ID: \n> ", venues_list);
             scanf("%d", &venueId);
             getchar();
+
             while (1) {
-                printf("请输入您要预约的日期:(YYYY-MM-DD):\n> ");
+                printf("Enter date (YYYY-MM-DD): \n> ");
                 scanf("%s", date);
                 getchar();
                 int tmp = validate_date(date);
                 if (tmp == -1) {
-            	     printf("请输入合法日期格式(YYYY-MM-DD)\n");
+                    printf("Invalid date format (YYYY-MM-DD).\n");
                 } else if (tmp == -2) {
-            	     printf("预约时间应不早于今天！\n");
+                    printf("Date cannot be earlier than today.\n");
                 } else if (tmp == -3) {
-            	     printf("预约时间不能超过一周！\n");
+                    printf("Date must be within one week from today.\n");
                 } else {
                     break;
                 }
             }
+
             while (1) {
-                printf("请输入您预约的开始时间 (HH:MM) (整点或半点):\n> ");
-		      scanf("%s", startTime);
-		      getchar();
-		      int tmp1 = validate_time(startTime);
-                printf("请输入您预约的结束时间 (HH:MM) (整点或半点):\n> ");
+                printf("Enter start time (HH:MM, on the hour or half-hour): \n> ");
+                scanf("%s", startTime);
+                getchar();
+                int tmp1 = validate_time(startTime);
+
+                printf("Enter end time (HH:MM, on the hour or half-hour): \n> ");
                 scanf("%s", endTime);
-		      getchar();
-		      int tmp2 = validate_time(endTime);
+                getchar();
+                int tmp2 = validate_time(endTime);
+
                 if (strcmp(startTime, endTime) < 0) {
                     break;
                 } else if (tmp1 < 0 || tmp2 < 0) {
-                	printf("请输入正确的时间！\n");
+                    printf("Invalid time format.\n");
                 } else {
-                	printf("请输入您预约的结束时间 (HH:MM) (整点或半点):\n> ");
+                    printf("End time must be after start time.\n");
                 }
             }
+
             char req[128];
             snprintf(req, sizeof(req), "create,%d,%s,%s,%s", venueId, date, startTime, endTime);
             int tmp_response = send_request(sockfd, &server_addr, req, response, sizeof(response), mode);
+
             if (tmp_response > 0) {
                 if (strncmp(response, "ERR", 3) == 0) {
-                    printf("处理您的新建预约申请发生了错误: %s\n", response);
+                    printf("Error processing your booking request: %s\n", response);
                 } else {
                     int appointmentId = atoi(response + 17); // "OK|appointmentId=123456"
-                    printf("您的修改预约申请已办理成功！请保存好你的预约ID: %d\n", appointmentId);
+                    printf("Booking successful! Your appointment ID is: %u\n", appointmentId);
                 }
-            } else if (tmp_response == -1){
+            } else if (tmp_response == -1) {
                 printf("System Error!\n");
             } else {
-                printf("Get the response from the cache\n");
+                printf("Response retrieved from cache.\n");
             }
         }
         else if (strcmp(command, "alter_exist") == 0) {
-            int appointmentId;
+            uint32_t appointmentId;
             float newDuration;
-            printf("请输入预约ID: \n>  ");
-            scanf("%d", &appointmentId);
+            printf("Enter your appointment ID: \n> ");
+            scanf("%u", &appointmentId);
             getchar();
-            printf("您不能改变持续时间，但可以调整时间段，输入正数代表推迟，输入负数代表提前: 单位：小时\n");
+
+            printf("You cannot change duration, but you can shift the time slot.\n");
+            printf("Enter offset in hours (positive to delay, negative to advance): \n> ");
             scanf("%f", &newDuration);
-            getchar();
-            char req[128];
-            snprintf(req, sizeof(req), "alter,%d,%.2f", appointmentId, newDuration);
-            int tmp_response = send_request(sockfd, &server_addr, req, response, sizeof(response), mode);
-            if (tmp_response > 0) {
-                if (strncmp(response, "ERR", 3) == 0) {
-                    printf("处理您的修改预约申请发生了错误: %s\n", response);
-                } else {
-                	char timePeriod[16];
-                	const char *pos = strstr(response, "timePeriod="); // "OK|timePeriod=123456"
-                    if (pos) {
-                        strcpy(timePeriod, pos + strlen("timePeriod="));
-                        printf("您的修改预约申请已办理成功！新的预约时间段为: %s\n", timePeriod);
-                    }
-                }
-            } else if (tmp_response == -1){
-                printf("System Error!\n");
-            } else {
-                printf("Get the response from the cache\n");
-            }
-        }
-        else if (strcmp(command, "delete_exist") == 0) {
-            int appointmentId;
-            printf("删除预约操作不可撤销，如果确认，请输入您的预约ID: \n>  ");
-            scanf("%d", &appointmentId);
             getchar();
 
             char req[128];
-            snprintf(req, sizeof(req), "delete,%d", appointmentId);
+            snprintf(req, sizeof(req), "alter,%u" ",%.2f", appointmentId, newDuration);
             int tmp_response = send_request(sockfd, &server_addr, req, response, sizeof(response), mode);
-            if (tmp_response >= 0) {
+
+            if (tmp_response > 0) {
                 if (strncmp(response, "ERR", 3) == 0) {
-                    printf("处理您的删除预约申请发生了错误: %s\n", response);
+                    printf("Error processing your modification request: %s\n", response);
                 } else {
-                    printf("您的删除预约申请已办理成功!\n");
+                    char timePeriod[16];
+                    const char *pos = strstr(response, "timePeriod=");
+                    if (pos) {
+                        strcpy(timePeriod, pos + strlen("timePeriod="));
+                        printf("Modification successful! New time slot: %s\n", timePeriod);
+                    }
                 }
-            } else if (tmp_response == -1){
+            } else if (tmp_response == -1) {
                 printf("System Error!\n");
             } else {
-                printf("Get response from cache!\n");
+                printf("Response retrieved from cache.\n");
+            }
+        }
+        else if (strcmp(command, "delete_exist") == 0) {
+            uint32_t appointmentId;
+            printf("Deletion is irreversible. Enter your appointment ID to confirm: \n> ");
+            scanf("%u", &appointmentId);
+            getchar();
+
+            char req[128];
+            snprintf(req, sizeof(req), "delete,%u", appointmentId);
+            int tmp_response = send_request(sockfd, &server_addr, req, response, sizeof(response), mode);
+
+            if (tmp_response >= 0) {
+                if (strncmp(response, "ERR", 3) == 0) {
+                    printf("Error processing your cancellation request: %s\n", response);
+                } else {
+                    printf("Appointment successfully cancelled!\n");
+                }
+            } else if (tmp_response == -1) {
+                printf("System Error!\n");
+            } else {
+                printf("Response retrieved from cache!\n");
             }
         }
         else if (strcmp(command, "duplicate_exist") == 0) {
-            int appointmentId;
-            printf("请输入预约ID: \n>  ");
-            scanf("%d", &appointmentId);
+            uint32_t appointmentId;
+            printf("Enter your appointment ID: \n> ");
+            scanf("%u", &appointmentId);
             getchar();
+
             char req[128];
-            snprintf(req, sizeof(req), "duplicate,%d", appointmentId);
+            snprintf(req, sizeof(req), "duplicate,%u", appointmentId);
             int tmp_response = send_request(sockfd, &server_addr, req, response, sizeof(response), mode);
+
             if (tmp_response > 0) {
                 if (strncmp(response, "ERR", 3) == 0) {
-                    printf("处理您的复制预约申请发生了错误: %s\n", response);
+                    printf("Error processing your duplication request: %s\n", response);
                 } else {
-                	int appointmentId = atoi(response + 17); // "OK|appointmentId=123456"
-                    printf("您的新预约申请已办理成功！请保存好你的预约ID: %d\n", appointmentId);
+                    int newAppointmentId = atoi(response + 17); // "OK|appointmentId=123456"
+                    printf("Duplication successful! Your new appointment ID is: %u\n", newAppointmentId);
                 }
-            } else if (tmp_response == -1){
+            } else if (tmp_response == -1) {
                 printf("System Error!\n");
             } else {
-                printf("Get the response from the cache\n");
+                printf("Response retrieved from cache.\n");
             }
         }
         else if (strcmp(command, "subscribe_venue") == 0) {
-            int venueId, duration;
+            int venueId;
             double durationHour;
             time_t now = time(NULL);
             struct tm *tm_info = localtime(&now);
@@ -241,23 +276,25 @@ int main() {
             strftime(date, sizeof(date), "%Y-%m-%d", tm_info);
             strftime(timepoint, sizeof(timepoint), "%H:%M", tm_info);
             long startTs = parseTime(date, timepoint);
-            printf("请输入您想订阅的场所ID: \n>  ");
+
+            printf("Enter venue ID to subscribe: \n> ");
             scanf("%d", &venueId);
             getchar();
-            printf("请输入您希望订阅的时长（单位：小时）: \n>  ");
+
+            printf("Enter subscription duration (in hours): \n> ");
             scanf("%lf", &durationHour);
             getchar();
-            duration = durationHour * 3600;
+
+            int duration = (int)(durationHour * 3600);
             char req[128];
             snprintf(req, sizeof(req), "hook,%d,%ld,%d", venueId, startTs, duration);
             int tmp_response = send_request(sockfd, &server_addr, req, response, sizeof(response), mode);
+
             if (tmp_response > 0) {
                 if (strncmp(response, "ERR", 3) == 0) {
-                    printf("处理您的订阅场所申请发生了错误: %s\n", response);
+                    printf("Error processing your subscription request: %s\n", response);
                 } else {
-                    printf("✅ 订阅场所模式开启！剩余时长为: %.lf 小时\n", durationHour);
-                    // 待机状态，客户端计时过程中实现:等待服务器消息+检测订阅超时，超时后恢复正常通信功能
-                    // based on chatgpt: select & poll
+                    printf("✅ Subscription activated! Duration: %.1f hour(s)\n", durationHour);
                     fd_set readfds;
                     struct timeval tv;
                     while (1) {
@@ -267,7 +304,7 @@ int main() {
                         tv.tv_usec = 0;
                         int ret = select(sockfd + 1, &readfds, NULL, NULL, &tv);
                         if (difftime(time(NULL), startTs) >= durationHour * 3600) {
-                            printf("⏰ 订阅时长已到，退出待机模式。\n");
+                            printf("⏰ Subscription expired. Exiting listening mode.\n");
                             break;
                         }
                         if (ret > 0 && FD_ISSET(sockfd, &readfds)) {
@@ -278,29 +315,29 @@ int main() {
                                 msg[received_len] = '\0';
                                 char *demar_data[10];
                                 demarshalize(msg, demar_data, received_len);
-                                printf("subscribe callback from server: %s\n", demar_data[0]);
+                                printf("🔔 Notification from server: %s\n", demar_data[0]);
                             }
                         } else if (ret < 0) {
                             perror("select error");
                             break;
                         }
-                     // ret == 0 -> 超时，继续循环判断时间
-                   }
+                    }
                 }
-            } else if (tmp_response == -1){
+            } else if (tmp_response == -1) {
                 printf("System Error!\n");
             } else {
-                printf("Get the response from the cache");
+                printf("Response retrieved from cache.\n");
             }
         }
         else if (strcmp(command, "exit") == 0) {
-            printf("退出系统，再见！\n");
+            printf("Exiting system. Goodbye!\n");
             break;
         }
         else {
-            printf("无效命令，请重试。\n");
+            printf("Invalid command. Please try again.\n");
         }
     }
+
     close(sockfd);
     return 0;
 }
