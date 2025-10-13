@@ -65,7 +65,7 @@ static void insert_venue(sqlite3 *db, const char *name) {
 int init_db() {
     sqlite3 *db = NULL;
     // it is told that no need for create a new db, open one if not exists will create one automatically https://stackoverflow.com/questions/41693599/create-a-sqlite-database-in-c
-    if (sqlite3_open("/home/archy/Desktop/server/backend/CampusVenueAppointment.db", &db) != SQLITE_OK) {
+    if (sqlite3_open("./backend/CampusVenueAppointment.db", &db) != SQLITE_OK) {
         fprintf(stderr, "Cannot open database: %s\n", sqlite3_errmsg(db));
         sqlite3_close(db);
         return 1;
