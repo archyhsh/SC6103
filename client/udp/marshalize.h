@@ -3,8 +3,8 @@
 
 #include <stdint.h>
 #include <arpa/inet.h>
+#include "../semantic_mode.h"
 
-size_t marshalize_single(char *buf, const char *str);
-int marshalizeReq(char *req, char* out, size_t size, uint32_t *requestID);
+int marshalizeReq(char *req, char *out, size_t size, uint32_t *requestID, semantic_mode_t mode);
 
 #endif

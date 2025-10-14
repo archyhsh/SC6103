@@ -5,11 +5,13 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <arpa/inet.h>
+#include "hash_function.h"
+#include "udp_client.h"
 
 #define PORT 12345
 
 /* 根据IP初始化服务器信息*/
-int udp_client_init(const char *ip, struct sockaddr_in *server_addr) {
+int udp_client_init(const char *server_ip, struct sockaddr_in *server_addr) {
     int sockfd = socket(AF_INET, SOCK_DGRAM, 0);
     if (sockfd < 0) {
         perror("socket error");
@@ -18,12 +20,14 @@ int udp_client_init(const char *ip, struct sockaddr_in *server_addr) {
     memset(server_addr, 0, sizeof(*server_addr));
     server_addr->sin_family = AF_INET;
     server_addr->sin_port = htons(PORT);
-    server_addr->sin_addr.s_addr = inet_addr(ip);
+    server_addr->sin_addr.s_addr = inet_addr(server_ip);
     if (server_addr->sin_addr.s_addr == INADDR_NONE) {
         perror("invalid IP address");
         close(sockfd);
         return -1;
     }
+    printf("[Client] Connecting to server: %s:%d\n", 
+           inet_ntoa(server_addr->sin_addr), ntohs(server_addr->sin_port));
     return sockfd;
 }
 /* 发送函数 */

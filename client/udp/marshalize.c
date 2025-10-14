@@ -8,7 +8,7 @@
 #include "at_most_once.h"
 #include "../semantic_mode.h"
 
-size_t marshalize_single(char *buf, const char *str) {
+static size_t marshalize_single(char *buf, const char *str) {
     // requestID for record, string marshalize with their individual length
     uint32_t len = strlen(str);
     uint32_t net_len = htonl(len);

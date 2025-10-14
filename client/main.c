@@ -81,7 +81,7 @@ int main() {
     } else {
         printf("[INIT SUCCESS] Available venues: %s\n", response);
         strncpy(venues_list, response, sizeof(venues_list) - 1);
-        venues_list[strlen(venues_list) - 1] = '\0';
+        venues_list[sizeof(venues_list) - 1] = '\0';
     }
 
     printf("Welcome to the Appointment Booking System!\n");

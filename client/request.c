@@ -14,7 +14,7 @@ int send_request(int sockfd, struct sockaddr_in *server_addr, char *req, char *r
     printf("\nCurrently using mode: %s\n", mode == SEMANTIC_AT_MOST_ONCE ? "AT_MOST_ONCE" : "AT_LEAST_ONCE");
     char message[1024];
     uint32_t requestID;
-    size_t msg_len = marshalizeReq(req, message, sizeof(message), &requestID); 
+    size_t msg_len = marshalizeReq(req, message, sizeof(message), &requestID, mode); 
     const char* cached_response = lookup_cache(requestID);
     if (cached_response != NULL) {
         printf("Using cached response for request %u\n", requestID);
