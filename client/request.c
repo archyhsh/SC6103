@@ -22,6 +22,7 @@ int send_request(int sockfd, struct sockaddr_in *server_addr, char *req, char *r
             strncpy(response_buf, cached_response, buf_size-1);
             response_buf[buf_size-1] = '\0';
         }
+        printf("Response retrieved from cache: %s\n", response_buf);
         return -2;
     }
 
