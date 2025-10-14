@@ -31,6 +31,8 @@ int main() {
         socklen_t addr_len = sizeof(client_addr);
         char buffer[1024];
         char resp[1024];
+        char occupied_slots[1024]; 
+        size_t slots_size = 1024;
 
         ssize_t received_len = udp_recv(sockfd, buffer, 1024, &client_addr, &addr_len);
         if (received_len < 0) continue;
@@ -64,6 +66,20 @@ int main() {
         if (strcmp(demar_data[0], "init") == 0) {
             snprintf(resp, sizeof(resp), "OK|venues=1:TR62,2:TR68");
         }
+        else if (strcmp(demar_data[0], "query") == 0) {
+            if (parameters >= 3) {
+                int venueId = atoi(demar_data[1]);
+                char *date = demar_data[2];
+                int tmp = query(db, sockfd, venueId, date, NULL, NULL, -1, occupied_slots, slots_size);
+                if (tmp == -1) {
+                    snprintf(resp, sizeof(resp), "ERR|System error!");
+                } else {
+                    snprintf(resp, sizeof(resp), "OK|occupied time period on %s: %s\n", date, occupied_slots);
+                }
+            } else {
+                snprintf(resp, sizeof(resp), "ERR|invalid arguments for query function!");
+            }
+        }
         else if (strcmp(demar_data[0], "create") == 0) {
             uint32_t appointmentId;
             if (parameters >= 5) {
@@ -71,11 +87,11 @@ int main() {
                 char *date = demar_data[2];
                 char *start = demar_data[3];
                 char *end = demar_data[4];
-                int tmp = appoint(db, sockfd, venueId, date, start, end, &appointmentId);
+                int tmp = appoint(db, sockfd, venueId, date, start, end, &appointmentId, occupied_slots, slots_size);
                 if (tmp == -1) {
                     snprintf(resp, sizeof(resp), "ERR|System error!");
                 } else if (tmp == -2) {
-                    snprintf(resp, sizeof(resp), "ERR|Appointment time period not available!");
+                    snprintf(resp, sizeof(resp), "ERR|Appointment time period not available! Already occupied time period for this spot on %s: %s\n", date, occupied_slots);
                 } else {
                     snprintf(resp, sizeof(resp), "OK|appointmentId=%u", appointmentId);
                 }
@@ -88,11 +104,11 @@ int main() {
                 int appointmentId = atoi(demar_data[1]);
                 double duration = atof(demar_data[2]);
                 char newStart[6], newEnd[6];
-                int tmp = alter(db, sockfd, appointmentId, duration, newStart, newEnd);
+                int tmp = alter(db, sockfd, appointmentId, duration, newStart, newEnd, occupied_slots, slots_size);
                 if (tmp == -1) {
                     snprintf(resp, sizeof(resp), "ERR|System error!");
                 } else if (tmp == -2) {
-                    snprintf(resp, sizeof(resp), "ERR|Appointment time period not available!");
+                    snprintf(resp, sizeof(resp), "ERR|Appointment time period not available! Already occupied time period for this spot on this day: %s\n", occupied_slots);
                 } else if (tmp == -3) {
                     snprintf(resp, sizeof(resp), "ERR|Appointment time cannot start on the previous day or end on the next day!");
                 } else if (tmp == -4) {
@@ -119,11 +135,11 @@ int main() {
             if (parameters >= 2) {
                 uint32_t appointmentId = atoi(demar_data[1]);
                 uint32_t rAppointmentId;
-                int tmp = duplicate(db, sockfd, appointmentId, &rAppointmentId);
+                int tmp = duplicate(db, sockfd, appointmentId, &rAppointmentId, occupied_slots, slots_size);
                 if (tmp == -1) {
                     snprintf(resp, sizeof(resp), "ERR|System error!");
                 } else if (tmp == -2) {
-                    snprintf(resp, sizeof(resp), "ERR|Appointment time period not available!");
+                    snprintf(resp, sizeof(resp), "ERR|Appointment time period not available! Already occupied time period for this spot on this day: %s\n", occupied_slots);
                 } else if (tmp == -3) {
                     snprintf(resp, sizeof(resp), "ERR|Invalid appointmentId!");
                 } else if (tmp == -4) {
