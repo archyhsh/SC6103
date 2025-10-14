@@ -12,7 +12,7 @@
 /* 回调函数 记录IP与端口，触发后发送信息*/
 static int subscribeCallback(sqlite3 *db, int sockfd, int venueId, char *msg) {
     sqlite3_stmt *stmt;
-    const char *sql =    "SELECT IP, PORT, startTime, duration FROM ClientIP WHERE hookVenueId = ? AND strftime('%s','now') BETWEEN startTime AND (startTime + duration);";
+    const char *sql =    "SELECT IP, PORT, startTime, duration FROM ClientIP WHERE hookVenueId = ? AND (strftime('%s','now') + 0) BETWEEN startTime AND (startTime + duration);";
     if (sqlite3_prepare_v2(db, sql, -1, &stmt, NULL) != SQLITE_OK) {
         fprintf(stderr, "Prepare failed: %s\n", sqlite3_errmsg(db));
         return -1;

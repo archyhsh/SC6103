@@ -84,13 +84,16 @@ int main() {
         venues_list[sizeof(venues_list) - 1] = '\0';
     }
 
-    printf("Welcome to the Appointment Booking System!\n");
+    printf("\n\033[1;92m   WELCOME TO THE APPOINTMENT BOOKING SYSTEM  \033[0m\n");
 
     while (1) {
-        printf("\n=== Please Select Communication Semantic Mode ===\n");
-        printf("0 - At_Most_Once (Recommended for queries)\n");
-        printf("1 - At_Least_Once (Recommended for booking/cancellation)\n");
-        printf("Your choice (0/1): ");
+        printf("\033[1;33m┌───────────────────────────────────────────────┐\033[0m\n");
+        printf("\033[1;33m│\033[0m \033[1mSelect Communication Semantic Mode            \033[33m│\033[0m\n");
+        printf("\033[1;33m├───────────────────────────────────────────────┤\033[0m\n");
+        printf("\033[1;33m│\033[0m 0 - At_Most_Once  (Recommended for queries)   \033[1;33m│\033[0m\n");
+        printf("\033[1;33m│\033[0m 1 - At_Least_Once (Recommended for booking)   \033[1;33m│\033[0m\n");
+        printf("\033[1;33m└───────────────────────────────────────────────┘\033[0m\n");
+        printf("\033[1;37mYour choice (0/1): \033[0m");
 
         int input;
         if (scanf("%d", &input) != 1) {
@@ -113,13 +116,16 @@ int main() {
         }
     }
 
-    printf("\nEnter command:\n"
-           "  create_new      - Book a new appointment\n"
-           "  alter_exist     - Modify an existing appointment\n"
-           "  delete_exist    - Cancel an existing appointment\n"
-           "  duplicate_exist - Duplicate an appointment to the next day\n"
-           "  subscribe_venue - Subscribe to venue updates\n"
-           "  exit            - Exit the system\n");
+    printf("\n\033[1;33m┌────────────────────────────────────────────────────┐\033[0m\n");
+    printf("\033[1;33m│\033[0m \033[1mAvailable Commands\033[0m                                 \033[1;33m│\033[0m\n");
+    printf("\033[1;33m├────────────────────────────────────────────────────┤\033[0m\n");
+    printf("\033[1;33m│\033[0m create_new      - Book a new appointment           \033[1;33m│\033[0m\n");
+    printf("\033[1;33m│\033[0m alter_exist     - Modify an existing appointment   \033[1;33m│\033[0m\n");
+    printf("\033[1;33m│\033[0m delete_exist    - Cancel an existing appointment   \033[1;33m│\033[0m\n");
+    printf("\033[1;33m│\033[0m duplicate_exist - Duplicate to next day            \033[1;33m│\033[0m\n");
+    printf("\033[1;33m│\033[0m subscribe_venue - Subscribe to venue updates       \033[1;33m│\033[0m\n");
+    printf("\033[1;33m│\033[0m exit            - Exit the system                  \033[1;33m│\033[0m\n");
+    printf("\033[1;33m└────────────────────────────────────────────────────┘\033[0m\n");
 
     while (1) {
         printf("\n> ");
@@ -184,8 +190,6 @@ int main() {
                 }
             } else if (tmp_response == -1) {
                 printf("System Error!\n");
-            } else {
-                printf("Response retrieved from cache.\n");
             }
         }
         else if (strcmp(command, "alter_exist") == 0) {
@@ -217,8 +221,6 @@ int main() {
                 }
             } else if (tmp_response == -1) {
                 printf("System Error!\n");
-            } else {
-                printf("Response retrieved from cache.\n");
             }
         }
         else if (strcmp(command, "delete_exist") == 0) {
@@ -239,8 +241,6 @@ int main() {
                 }
             } else if (tmp_response == -1) {
                 printf("System Error!\n");
-            } else {
-                printf("Response retrieved from cache!\n");
             }
         }
         else if (strcmp(command, "duplicate_exist") == 0) {
@@ -262,21 +262,20 @@ int main() {
                 }
             } else if (tmp_response == -1) {
                 printf("System Error!\n");
-            } else {
-                printf("Response retrieved from cache.\n");
             }
         }
         else if (strcmp(command, "subscribe_venue") == 0) {
             int venueId;
             double durationHour;
-            time_t now = time(NULL);
+            /*time_t now = time(NULL);
             struct tm *tm_info = localtime(&now);
             char date[11];
             char timepoint[6];
             strftime(date, sizeof(date), "%Y-%m-%d", tm_info);
             strftime(timepoint, sizeof(timepoint), "%H:%M", tm_info);
-            long startTs = parseTime(date, timepoint);
+            long startTs = parseTime(date, timepoint);*/
 
+            printf("Available venues: %s\n> ", venues_list);
             printf("Enter venue ID to subscribe: \n> ");
             scanf("%d", &venueId);
             getchar();
@@ -287,7 +286,8 @@ int main() {
 
             int duration = (int)(durationHour * 3600);
             char req[128];
-            snprintf(req, sizeof(req), "hook,%d,%ld,%d", venueId, startTs, duration);
+            time_t now = time(NULL);
+            snprintf(req, sizeof(req), "hook,%d,%ld,%d", venueId, now, duration);
             int tmp_response = send_request(sockfd, &server_addr, req, response, sizeof(response), mode);
 
             if (tmp_response > 0) {
@@ -295,18 +295,34 @@ int main() {
                     printf("Error processing your subscription request: %s\n", response);
                 } else {
                     printf("✅ Subscription activated! Duration: %.1f hour(s)\n", durationHour);
+
+                    double total_seconds = durationHour * 3600;
+                    time_t end_time = now + (time_t)total_seconds;
+
                     fd_set readfds;
                     struct timeval tv;
+
                     while (1) {
+                        time_t now = time(NULL);
+                        double remaining = difftime(end_time, now);
+
+                        if (remaining <= 0) {
+                            printf("\r\033[K⏰ Subscription expired. Exiting listening mode.\n");
+                            break;
+                        }
+
+                        int secs = (int)remaining;
+                        int hours = secs / 3600;
+                        int mins = (secs % 3600) / 60;
+                        int seconds = secs % 60;
+                        printf("\r\033[K⏳ Subscription active — %02d:%02d:%02d remaining... ", hours, mins, seconds);
+                        fflush(stdout);
+
                         FD_ZERO(&readfds);
                         FD_SET(sockfd, &readfds);
                         tv.tv_sec = 1;
                         tv.tv_usec = 0;
                         int ret = select(sockfd + 1, &readfds, NULL, NULL, &tv);
-                        if (difftime(time(NULL), startTs) >= durationHour * 3600) {
-                            printf("⏰ Subscription expired. Exiting listening mode.\n");
-                            break;
-                        }
                         if (ret > 0 && FD_ISSET(sockfd, &readfds)) {
                             char msg[128];
                             socklen_t addr_len = sizeof(server_addr);
@@ -315,7 +331,18 @@ int main() {
                                 msg[received_len] = '\0';
                                 char *demar_data[10];
                                 demarshalize(msg, demar_data, received_len);
-                                printf("🔔 Notification from server: %s\n", demar_data[0]);
+                                printf("\r\033[K🔔 Notification: %s\n", demar_data[0]);
+
+                                remaining = difftime(end_time, time(NULL));
+                                if (remaining > 0) {
+                                    secs = (int)remaining;
+                                    hours = secs / 3600;
+                                    mins = (secs % 3600) / 60;
+                                    seconds = secs % 60;
+                                    printf("⏳ Subscription active — %02d:%02d:%02d remaining... ",
+                                           hours, mins, seconds);
+                                    fflush(stdout);
+                                }
                             }
                         } else if (ret < 0) {
                             perror("select error");
@@ -325,8 +352,6 @@ int main() {
                 }
             } else if (tmp_response == -1) {
                 printf("System Error!\n");
-            } else {
-                printf("Response retrieved from cache.\n");
             }
         }
         else if (strcmp(command, "exit") == 0) {
