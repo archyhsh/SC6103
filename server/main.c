@@ -74,7 +74,17 @@ int main() {
                 if (tmp == -1) {
                     snprintf(resp, sizeof(resp), "ERR|System error!");
                 } else {
-                    snprintf(resp, sizeof(resp), "OK|occupied time period on %s: %s\n", date, occupied_slots);
+                    char venue[16];
+                    if (venueId == 1) {
+                        strcpy(venue, "TR62");
+                    }
+                    else if (venueId == 2) {
+                        strcpy(venue, "TR68");
+                    }
+                    else {
+                        snprintf(resp, sizeof(resp), "ERR|Invalid venueId!");
+                    }
+                    snprintf(resp, sizeof(resp), "OK|occupied time period on %s for venue %s: %s\n", date, venue, occupied_slots);
                 }
             } else {
                 snprintf(resp, sizeof(resp), "ERR|invalid arguments for query function!");

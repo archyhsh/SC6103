@@ -13,7 +13,6 @@
 #include "udp/demarshalize.h"
 #include "udp/at_most_once.h"
 #include "request.h"
-#include "parseTime.h"
 #include "config.h"
 #include "semantic_mode.h"
 /* 小工具：用于校验新请求日期合法*/
@@ -119,6 +118,7 @@ int main() {
     printf("\n\033[1;33m┌────────────────────────────────────────────────────┐\033[0m\n");
     printf("\033[1;33m│\033[0m \033[1mAvailable Commands\033[0m                                 \033[1;33m│\033[0m\n");
     printf("\033[1;33m├────────────────────────────────────────────────────┤\033[0m\n");
+    printf("\033[1;33m│\033[0m query_venue     - Check venue availability         \033[1;33m│\033[0m\n");
     printf("\033[1;33m│\033[0m create_new      - Book a new appointment           \033[1;33m│\033[0m\n");
     printf("\033[1;33m│\033[0m alter_exist     - Modify an existing appointment   \033[1;33m│\033[0m\n");
     printf("\033[1;33m│\033[0m delete_exist    - Cancel an existing appointment   \033[1;33m│\033[0m\n");
@@ -133,8 +133,46 @@ int main() {
             break;
         }
         command[strcspn(command, "\n")] = '\0';
+        if (strcmp(command, "query_venue") == 0) {
+            int venueId;
+            char date[16];
+            printf("Available venues: %s\nEnter venue ID: \n> ", venues_list);
+            scanf("%d", &venueId);
+            getchar();
 
-        if (strcmp(command, "create_new") == 0) {
+            while (1) {
+                printf("Enter date (YYYY-MM-DD): \n> ");
+                scanf("%s", date);
+                getchar();
+                int tmp = validate_date(date);
+                if (tmp == -1) {
+                    printf("Invalid date format (YYYY-MM-DD).\n");
+                } else if (tmp == -2) {
+                    printf("Date cannot be earlier than today.\n");
+                } else if (tmp == -3) {
+                    printf("Date must be within one week from today.\n");
+                } else {
+                    break;
+                }
+            }
+
+            char req[128];
+            snprintf(req, sizeof(req), "query,%d,%s", venueId, date);
+            int tmp_response = send_request(sockfd, &server_addr, req, response, sizeof(response), mode);
+
+            if (tmp_response > 0) {
+                if (strncmp(response, "ERR", 3) == 0) {
+                    printf("Error processing your query request: %s\n", response);
+                } else {
+                    char occupied_slots[1024];
+                    if (sscanf(response, "OK|occupied time period is %[^\n]", occupied_slots) == 1) {
+                        printf("This date occupied slots are: %s\n", occupied_slots);
+                    }
+                }
+            } else if (tmp_response == -1) {
+                printf("System Error!\n");
+            }
+        } else if (strcmp(command, "create_new") == 0) {
             int venueId;
             char date[16], startTime[8], endTime[8];
             printf("Available venues: %s\nEnter venue ID: \n> ", venues_list);
@@ -251,7 +289,8 @@ int main() {
             getchar();
 
             char req[128];
-            snprintf(req, sizeof(req), "duplicate,%u", appointmentId);
+            time_t now = time(NULL);
+            snprintf(req, sizeof(req), "duplicate,%u,%ld", appointmentId, now);
             int tmp_response = send_request(sockfd, &server_addr, req, response, sizeof(response), mode);
 
             if (tmp_response > 0) {
@@ -268,14 +307,6 @@ int main() {
         else if (strcmp(command, "subscribe_venue") == 0) {
             int venueId;
             double durationHour;
-            /*time_t now = time(NULL);
-            struct tm *tm_info = localtime(&now);
-            char date[11];
-            char timepoint[6];
-            strftime(date, sizeof(date), "%Y-%m-%d", tm_info);
-            strftime(timepoint, sizeof(timepoint), "%H:%M", tm_info);
-            long startTs = parseTime(date, timepoint);*/
-
             printf("Available venues: %s\n> ", venues_list);
             printf("Enter venue ID to subscribe: \n> ");
             scanf("%d", &venueId);
