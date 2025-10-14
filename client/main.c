@@ -205,7 +205,8 @@ int main() {
             getchar();
 
             char req[128];
-            snprintf(req, sizeof(req), "alter,%u" ",%.2f", appointmentId, newDuration);
+            time_t now = time(NULL);
+            snprintf(req, sizeof(req), "alter,%u,%.2f,%ld", appointmentId, newDuration, now);
             int tmp_response = send_request(sockfd, &server_addr, req, response, sizeof(response), mode);
 
             if (tmp_response > 0) {
