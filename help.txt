@@ -1,0 +1,65 @@
+only support Linux system && using makefile to build
+file structure:
+📦 Appointment Booking System
+├── 📁 Client
+│   ├── 🛠️  Build
+│   │   ├── Makefile
+│   ├── ⚙️  Configuration
+│   │   ├── config.h
+│   │   └── config.ini
+│   ├── 🎯 Core
+│   │   ├── main.c
+│   │   ├── request.c
+│   │   ├── request.h
+│   │   └── semantic_mode.h
+│   └── 📡 Network (UDP)
+│       ├── 🛡️  Semantics
+│       │   ├── at_most_once.c
+│       │   └── at_most_once.h
+│       ├── 🔄 Serialization
+│       │   ├── marshalize.c
+│       │   ├── marshalize.h
+│       │   ├── demarshalize.c
+│       │   └── demarshalize.h
+│       ├── 🔐 Security
+│       │   ├── hash_function.c
+│       │   └── hash_function.h
+│       └── 🌐 Transport
+│           ├── udp_client.c
+│           └── udp_client.h
+├── 📁 Server
+│   ├── 🛠️  Build
+│   │   ├── Makefile
+│   ├️  🎯 Core
+│   │   ├── main.c
+│   │   └── semantic_mode.h
+│   ├── 💾 Backend
+│   │   ├── Database
+│   │   │   ├── db_init.c
+│   │   │   └── db_init.h
+│   │   ├── Business Logic
+│   │   │   ├── operate.c
+│   │   │   └── operate.h
+│   │   └── Utilities
+│   │       ├── parseTime.c
+│   │       └── parseTime.h
+│   └── 📡 Network (UDP)
+│       ├── 🛡️  Semantics
+│       │   ├── at_most_once.c
+│       │   └── at_most_once.h
+│       ├── 🔄 Serialization
+│       │   ├── marshalize.c
+│       │   ├── marshalize.h
+│       │   ├── demarshalize.c
+│       │   └── demarshalize.h
+│       ├── 🔐 Security
+│       │   ├── hash_function.c
+│       │   └── hash_function.h
+│       └── 🌐 Transport
+│           ├── udp_server.c
+│           └── udp_server.h
+└── 🔄 Shared Components
+    ├── 🛡️  Semantic Modes
+    ├── 🔄 Data Serialization
+    ├── 🔐 Hash Functions
+    └── 🌐 UDP Communication
