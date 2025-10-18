@@ -66,7 +66,7 @@ int send_request(int sockfd, struct sockaddr_in *server_addr, char *req, char *r
                 
                 // !!! 客户端缓存响应结果 !!!
                 insert_cache(requestID, demar_data[0]);
-                printf("Cached response for request %u:%s", requestID, demar_data[0]);
+                printf("Cached response for request %u:%s\n", requestID, demar_data[0]);
                 
                 // 清理临时数据
                 for (int i = 0; i < count; i++) {
