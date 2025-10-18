@@ -17,11 +17,11 @@ static int subscribeCallback(sqlite3 *db, int sockfd, int venueId, char *msg) {
         fprintf(stderr, "Prepare failed: %s\n", sqlite3_errmsg(db));
         return -1;
     }
-    sqlite3_bind_int(stmt, 1, venueId);
+    sqlite3_bind_int(stmt, 1, venueId);	
     while (sqlite3_step(stmt) == SQLITE_ROW) {
         const char *client_addr = (const char *)sqlite3_column_text(stmt, 0);
         const int port = sqlite3_column_int(stmt, 1);
-        printf("HOOK! send to %s\n", client_addr);
+        printf("HOOK! send to %s:%d\n", client_addr, port);
         // sendto client for date+start+end, no matter create/alter/duplicate/delete
         struct sockaddr_in cliaddr;
         memset(&cliaddr, 0, sizeof(cliaddr));
@@ -32,14 +32,14 @@ static int subscribeCallback(sqlite3 *db, int sockfd, int venueId, char *msg) {
         uint32_t requestID = 0;
         char message[1024];
         size_t respLen = marshalizeResp(requestID, msg, message, sizeof(message));
-        printf("the callback msg is of %ld length\n", respLen);
+        printf("the callback msg is %s\n", message);
         udp_send(sockfd, message, respLen, &cliaddr, addr_len);
     }
     sqlite3_finalize(stmt);
     return 0;
 }
 /* 查询函数，根据场所ID和日期查询可用性 新建/复制时调用该函数会输入start和end 修改时会输入start, end和预约Id*/
-int query(sqlite3 *db, int sockfd, int venueId, const char *date, const char *start, const char *end, int appointmentId, char *occupied_slots, size_t slots_size) {
+int query(sqlite3 *db, int sockfd, int venueId, const char *date, const char *start, const char *end, uint32_t appointmentId, char *occupied_slots, size_t slots_size) {
     sqlite3_stmt *stmt;
     const char *sql;
     if (appointmentId >= 0) {
